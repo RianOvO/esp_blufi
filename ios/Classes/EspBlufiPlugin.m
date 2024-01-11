@@ -22,10 +22,10 @@
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
     FlutterMethodChannel* channel = [FlutterMethodChannel
-            methodChannelWithName:@"flutter_blufi"
+            methodChannelWithName:@"esp_blufi"
                   binaryMessenger:[registrar messenger]];
     EspBlufiPlugin* instance = [[EspBlufiPlugin alloc] init];
-    FlutterEventChannel* stateChannel = [FlutterEventChannel eventChannelWithName:@"flutter_blufi/state" binaryMessenger:[registrar messenger]];
+    FlutterEventChannel* stateChannel = [FlutterEventChannel eventChannelWithName:@"esp_blufi/state" binaryMessenger:[registrar messenger]];
     EspBlufiPluginStreamHandler* stateStreamHandler = [[EspBlufiPluginStreamHandler alloc] init];
     [stateChannel setStreamHandler:stateStreamHandler];
     instance.stateStreamHandler = stateStreamHandler;

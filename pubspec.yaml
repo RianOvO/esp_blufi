@@ -1,6 +1,6 @@
 name: esp_blufi
 description: "Wi-Fi configuration through BLUFI protocol for ESP BLUFI enabled devices"
-version: 0.0.3
+version: 0.0.5
 homepage: "https://github.com/RianOvO/esp_blufi"
 repository: "https://github.com/RianOvO/esp_blufi"
 
