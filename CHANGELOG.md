@@ -6,3 +6,7 @@
 ## 0.0.2
 
 * iOS open/ssl header files link
+
+## 0.0.3
+
+* Bug fix

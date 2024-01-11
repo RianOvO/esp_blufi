@@ -5,9 +5,9 @@
 #endif
 #import <CoreBluetooth/CoreBluetooth.h>
 
-@interface FlutterBlufiPlugin : NSObject<FlutterPlugin>
+@interface EspBlufiPlugin : NSObject<FlutterPlugin>
 @end
 
-@interface FlutterBlufiPluginStreamHandler : NSObject<FlutterStreamHandler>
+@interface EspBlufiPluginStreamHandler : NSObject<FlutterStreamHandler>
 @property FlutterEventSink sink;
 @end

@@ -24,7 +24,7 @@
     FlutterMethodChannel* channel = [FlutterMethodChannel
             methodChannelWithName:@"flutter_blufi"
                   binaryMessenger:[registrar messenger]];
-    EspBlufiPlugin* instance = [[EsplufiPlugin alloc] init];
+    EspBlufiPlugin* instance = [[EspBlufiPlugin alloc] init];
     FlutterEventChannel* stateChannel = [FlutterEventChannel eventChannelWithName:@"flutter_blufi/state" binaryMessenger:[registrar messenger]];
     EspBlufiPluginStreamHandler* stateStreamHandler = [[EspBlufiPluginStreamHandler alloc] init];
     [stateChannel setStreamHandler:stateStreamHandler];
