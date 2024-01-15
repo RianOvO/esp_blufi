@@ -65,6 +65,11 @@ class MethodChannelEspBlufi extends EspBlufiPlatform {
   }
 
   @override
+  Future<void> requestDeviceWifiScan() async {
+    await methodChannel.invokeMethod('requestDeviceWifiScan');
+  }
+
+  @override
   Future<void> configProvision({String? username, String? password}) async {
     await methodChannel.invokeMethod('configProvision', <String, dynamic>{'username': username, 'password': password});
   }

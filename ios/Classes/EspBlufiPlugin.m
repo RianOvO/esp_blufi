@@ -89,6 +89,12 @@
     }
 }
 
+- (void)requestDeviceWifiScan {
+    if (_blufiClient) {
+        [_blufiClient requestDeviceScan];
+    }
+}
+
 -(void)negotiateSecurity {
     if (_blufiClient) {
         [_blufiClient negotiateSecurity];
@@ -115,12 +121,6 @@
 -(void)requestDeviceStatus {
     if (_blufiClient) {
         [_blufiClient requestDeviceStatus];
-    }
-}
-
--(void)requestDeviceScan {
-    if (_blufiClient) {
-        [_blufiClient requestDeviceScan];
     }
 }
 
@@ -320,8 +320,8 @@
     else if ([@"requestDeviceStatus" isEqualToString:call.method]) {
         [self requestDeviceStatus];
     }
-    else if ([@"requestDeviceScan" isEqualToString:call.method]) {
-        [self requestDeviceScan];
+    else if ([@"requestDeviceWifiScan" isEqualToString:call.method]) {
+        [self requestDeviceWifiScan];
     }
     else if ([@"sendCustomData" isEqualToString:call.method]) {
         // NSString *customData = call.arguments[@"custom_data"];

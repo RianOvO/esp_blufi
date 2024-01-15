@@ -161,6 +161,9 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
     } else if (call.method.equals("requestCloseConnection")) {
       Log.d("esp_blufi_tcm", "request close connection received in android native code...");
       disconnectGatt();
+    } else if (call.method.equals("requestDeviceWifiScan")) {
+      Log.d("esp_blufi_tcm", "request device wifi scan in android native code...");
+      requestDeviceWifiScan();
     } else if (call.method.equals("configProvision")) {
       Log.d("esp_blufi_tcm", "configProvision called in android plugin side");
 

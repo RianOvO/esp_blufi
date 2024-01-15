@@ -31,7 +31,6 @@ abstract class EspBlufiPlatform extends PlatformInterface {
     throw UnimplementedError('testFunction() has not been implemented.');
   }
 
-
   Future<void> scanDeviceInfo({String? filterString}) {
     throw UnimplementedError('scanDeviceInfo() has not been implemented.');
   }
@@ -46,6 +45,10 @@ abstract class EspBlufiPlatform extends PlatformInterface {
 
   Future requestCloseConnection() async {
     throw UnimplementedError('requestCloseConnection() has not been implemented');
+  }
+
+  Future<void> requestDeviceWifiScan() async {
+    throw UnimplementedError('requestDeviceWifiScan() has not been implemented');
   }
 
   Future<void> configProvision({String? username, String? password}) async {

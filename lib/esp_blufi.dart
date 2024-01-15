@@ -30,6 +30,11 @@ class EspBlufi {
     return EspBlufi.instance.requestCloseConnection();
   }
 
+  Future requestDeviceWifiScan() async {
+    return EspBlufi.instance
+        .requestDeviceWifiScan();
+  }
+
   Future configProvision({String? username, String? password}) async {
     return EspBlufi.instance
         .configProvision(username: username, password: password);
