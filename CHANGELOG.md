@@ -22,3 +22,7 @@
 ## 0.0.6
 
 * Scan Wi-Fi from device
+
+## 0.0.7
+
+* fix bug

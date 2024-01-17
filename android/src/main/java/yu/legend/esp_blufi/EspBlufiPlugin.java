@@ -47,6 +47,11 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
+import yu.legend.esp_blufi.params.BlufiConfigureParams;
+import yu.legend.esp_blufi.params.BlufiParameter;
+import yu.legend.esp_blufi.response.BlufiScanResult;
+import yu.legend.esp_blufi.response.BlufiStatusResponse;
+import yu.legend.esp_blufi.response.BlufiVersionResponse;
 
 /** EspBlufiPlugin */
 public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
