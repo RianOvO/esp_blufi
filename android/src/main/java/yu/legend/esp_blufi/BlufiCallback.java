@@ -1,4 +1,4 @@
-package yu.legend.esp_blufi_simulator_arm64;
+package yu.legend.esp_blufi;
 
 
 import android.bluetooth.BluetoothGatt;
@@ -7,9 +7,9 @@ import android.bluetooth.BluetoothGattService;
 
 import java.util.List;
 
-import yu.legend.esp_blufi_simulator_arm64.response.BlufiScanResult;
-import yu.legend.esp_blufi_simulator_arm64.response.BlufiStatusResponse;
-import yu.legend.esp_blufi_simulator_arm64.response.BlufiVersionResponse;
+import yu.legend.esp_blufi.response.BlufiScanResult;
+import yu.legend.esp_blufi.response.BlufiStatusResponse;
+import yu.legend.esp_blufi.response.BlufiVersionResponse;
 
 
 public abstract class BlufiCallback {

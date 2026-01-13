@@ -1,7 +1,7 @@
-package yu.legend.esp_blufi_simulator_arm64.response;
+package yu.legend.esp_blufi.response;
 
 
-import yu.legend.esp_blufi_simulator_arm64.params.BlufiParameter;
+import yu.legend.esp_blufi.params.BlufiParameter;
 
 public class BlufiStatusResponse {
     private int mOpMode = -1;

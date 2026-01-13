@@ -1,4 +1,4 @@
-package yu.legend.esp_blufi_simulator_arm64.security;
+package yu.legend.esp_blufi.security;
 
 public class BlufiCRC {
     private static final int[] CRC_TB = {

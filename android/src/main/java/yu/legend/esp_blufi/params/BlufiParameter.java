@@ -1,4 +1,4 @@
-package yu.legend.esp_blufi_simulator_arm64.params;
+package yu.legend.esp_blufi.params;
 
 import java.util.UUID;
 

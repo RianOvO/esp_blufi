@@ -1,10 +1,10 @@
-package yu.legend.esp_blufi_simulator_arm64;
+package yu.legend.esp_blufi;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGattCallback;
 import android.content.Context;
 
-import yu.legend.esp_blufi_simulator_arm64.params.BlufiConfigureParams;
+import yu.legend.esp_blufi.params.BlufiConfigureParams;
 
 
 public class BlufiClient {

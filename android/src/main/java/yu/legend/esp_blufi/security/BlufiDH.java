@@ -1,4 +1,4 @@
-package yu.legend.esp_blufi_simulator_arm64.security;
+package yu.legend.esp_blufi.security;
 
 import java.math.BigInteger;
 import java.security.InvalidAlgorithmParameterException;
