@@ -1,4 +1,4 @@
-package yu.legend.esp_blufi;
+package yu.legend.esp_blufi_simulator_arm64;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
@@ -31,15 +31,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.crypto.interfaces.DHPublicKey;
 
-import yu.legend.esp_blufi.params.BlufiConfigureParams;
-import yu.legend.esp_blufi.params.BlufiParameter;
-import yu.legend.esp_blufi.response.BlufiScanResult;
-import yu.legend.esp_blufi.response.BlufiStatusResponse;
-import yu.legend.esp_blufi.response.BlufiVersionResponse;
-import yu.legend.esp_blufi.security.BlufiAES;
-import yu.legend.esp_blufi.security.BlufiCRC;
-import yu.legend.esp_blufi.security.BlufiDH;
-import yu.legend.esp_blufi.security.BlufiMD5;
+import yu.legend.esp_blufi_simulator_arm64.params.BlufiConfigureParams;
+import yu.legend.esp_blufi_simulator_arm64.params.BlufiParameter;
+import yu.legend.esp_blufi_simulator_arm64.response.BlufiScanResult;
+import yu.legend.esp_blufi_simulator_arm64.response.BlufiStatusResponse;
+import yu.legend.esp_blufi_simulator_arm64.response.BlufiVersionResponse;
+import yu.legend.esp_blufi_simulator_arm64.security.BlufiAES;
+import yu.legend.esp_blufi_simulator_arm64.security.BlufiCRC;
+import yu.legend.esp_blufi_simulator_arm64.security.BlufiDH;
+import yu.legend.esp_blufi_simulator_arm64.security.BlufiMD5;
 
 @SuppressLint("MissingPermission")
 class BlufiClientImpl implements BlufiParameter {

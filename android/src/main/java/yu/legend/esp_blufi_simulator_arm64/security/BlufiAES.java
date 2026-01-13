@@ -1,4 +1,4 @@
-package yu.legend.esp_blufi.security;
+package yu.legend.esp_blufi_simulator_arm64.security;
 
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;

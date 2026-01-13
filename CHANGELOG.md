@@ -1,6 +1,18 @@
+## 0.1.7
+
+* bug fix
+
+## 0.1.6
+
+* bug fix
+
+## 0.1.5
+
+* Update OpenSSL to version 1.1.1w to support iOS simulator arm64 26.2
+
 ## 0.1.4
 
-* Update OpenSSL to version 1.1.1w to support iOS 26.2
+* Update OpenSSL to version 1.1.1w to support iOS simulator arm64 26.2
 
 ## 0.1.3
 

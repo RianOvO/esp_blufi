@@ -1,4 +1,4 @@
-package yu.legend.esp_blufi.response;
+package yu.legend.esp_blufi_simulator_arm64.response;
 
 
 import java.util.Locale;

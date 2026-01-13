@@ -2,7 +2,7 @@
 #import <UIKit/UIKit.h>
 #import <XCTest/XCTest.h>
 
-@import esp_blufi;
+@import esp_blufi_simulator_arm64;
 
 // This demonstrates a simple unit test of the Objective-C portion of this plugin's implementation.
 //

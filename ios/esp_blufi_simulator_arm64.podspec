@@ -3,13 +3,13 @@
 # Run `pod lib lint flutter_blufi.podspec' to validate before publishing.
 #
 Pod::Spec.new do |s|
-  s.name             = 'esp_blufi'
+  s.name             = 'esp_blufi_simulator_arm64'
   s.version          = '0.0.5'
   s.summary          = 'A new Flutter plugin.'
   s.description      = <<-DESC
 A new Flutter plugin.
                        DESC
-  s.homepage         = 'https://github.com/RianOvO/esp_blufi'
+  s.homepage         = 'https://github.com/RianOvO/esp_blufi_simulator_arm64'
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'RianOvO' => 'yu.legend@outlook.com' }
   s.source           = { :path => '.' }
@@ -19,7 +19,7 @@ A new Flutter plugin.
   'Classes/BlufiLibrary/**/*{.h,.cpp,.a}'
   s.dependency 'Flutter'
   s.platform = :ios, '8.0'
-  s.ios.xcconfig = { "HEADER_SEARCH_PATHS" => "$(SRCROOT)/../.symlinks/plugins/esp_blufi/ios/Classes/BlufiLibrary/Security/openssl/include" }
+  s.ios.xcconfig = { "HEADER_SEARCH_PATHS" => "$(SRCROOT)/../.symlinks/plugins/esp_blufi_simulator_arm64/ios/Classes/BlufiLibrary/Security/openssl/include" }
   s.ios.vendored_libraries = 'Classes/BlufiLibrary/Security/openssl/*{.a}'
 
   # Flutter.framework does not contain a i386 slice.

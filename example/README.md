@@ -1,6 +1,6 @@
 # esp_blufi_example
 
-Demonstrates how to use the esp_blufi plugin.
+Demonstrates how to use the esp_blufi_simulator_arm64 plugin.
 
 ## Getting Started
 

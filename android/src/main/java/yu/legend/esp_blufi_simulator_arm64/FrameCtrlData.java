@@ -1,5 +1,5 @@
-package yu.legend.esp_blufi;
-import yu.legend.esp_blufi.params.BlufiParameter;
+package yu.legend.esp_blufi_simulator_arm64;
+import yu.legend.esp_blufi_simulator_arm64.params.BlufiParameter;
 class FrameCtrlData {
     private static final int FRAME_CTRL_POSITION_ENCRYPTED = 0;
     private static final int FRAME_CTRL_POSITION_CHECKSUM = 1;

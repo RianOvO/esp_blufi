@@ -1,5 +1,5 @@
-import 'package:esp_blufi/esp_blufi_method_channel.dart';
-import 'package:esp_blufi/esp_blufi_platform_interface.dart';
+import 'package:esp_blufi_simulator_arm64/esp_blufi_method_channel.dart';
+import 'package:esp_blufi_simulator_arm64/esp_blufi_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 

@@ -1,4 +1,4 @@
-package yu.legend.esp_blufi;
+package yu.legend.esp_blufi_simulator_arm64;
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Activity;
@@ -47,11 +47,11 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
-import yu.legend.esp_blufi.params.BlufiConfigureParams;
-import yu.legend.esp_blufi.params.BlufiParameter;
-import yu.legend.esp_blufi.response.BlufiScanResult;
-import yu.legend.esp_blufi.response.BlufiStatusResponse;
-import yu.legend.esp_blufi.response.BlufiVersionResponse;
+import yu.legend.esp_blufi_simulator_arm64.params.BlufiConfigureParams;
+import yu.legend.esp_blufi_simulator_arm64.params.BlufiParameter;
+import yu.legend.esp_blufi_simulator_arm64.response.BlufiScanResult;
+import yu.legend.esp_blufi_simulator_arm64.response.BlufiStatusResponse;
+import yu.legend.esp_blufi_simulator_arm64.response.BlufiVersionResponse;
 
 /** EspBlufiPlugin */
 public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
@@ -86,9 +86,9 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
     handler = new Handler(Looper.getMainLooper());
-    channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "esp_blufi");
+    channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "esp_blufi_simulator_arm64");
     channel.setMethodCallHandler(this);
-    stateChannel = new EventChannel(flutterPluginBinding.getBinaryMessenger(), "esp_blufi/state");
+    stateChannel = new EventChannel(flutterPluginBinding.getBinaryMessenger(), "esp_blufi_simulator_arm64/state");
 //        channel.setMethodCallHandler(new FlutterBlufiPlugin(flutterPluginBinding.activity()));
     streamHandler = new EventChannel.StreamHandler() {
       @Override

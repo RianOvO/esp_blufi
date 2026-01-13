@@ -1,4 +1,4 @@
-# esp_blufi
+# esp_blufi_simulator_arm64
 
 A new Flutter plugin project.
 

@@ -1,8 +1,8 @@
-name: esp_blufi
+name: esp_blufi_simulator_arm64
 description: "Wi-Fi configuration through BLUFI protocol for ESP BLUFI enabled devices"
-version: 0.1.4
-homepage: "https://github.com/RianOvO/esp_blufi"
-repository: "https://github.com/RianOvO/esp_blufi"
+version: 0.1.7
+homepage: "https://github.com/RianOvO/esp_blufi_simulator_arm64"
+repository: "https://github.com/RianOvO/esp_blufi_simulator_arm64"
 
 environment:
   sdk: '>=3.2.3 <4.0.0'
@@ -36,7 +36,7 @@ flutter:
   plugin:
     platforms:
       android:
-        package: yu.legend.esp_blufi
+        package: yu.legend.esp_blufi_simulator_arm64
         pluginClass: EspBlufiPlugin
       ios:
         pluginClass: EspBlufiPlugin

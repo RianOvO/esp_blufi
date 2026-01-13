@@ -1,4 +1,4 @@
-group 'yu.legend.esp_blufi'
+group 'yu.legend.esp_blufi_simulator_arm64'
 version '1.0'
 
 buildscript {
@@ -23,7 +23,7 @@ apply plugin: 'com.android.library'
 
 android {
     if (project.android.hasProperty("namespace")) {
-        namespace 'yu.legend.esp_blufi'
+        namespace 'yu.legend.esp_blufi_simulator_arm64'
     }
 
     compileSdkVersion 36

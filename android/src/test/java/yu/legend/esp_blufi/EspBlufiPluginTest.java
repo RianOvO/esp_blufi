@@ -1,4 +1,4 @@
-package yu.legend.esp_blufi;
+package yu.legend.esp_blufi_simulator_arm64;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;

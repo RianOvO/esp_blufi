@@ -10,8 +10,8 @@ typedef ResultCallback = void Function(String? data);
 class MethodChannelEspBlufi extends EspBlufiPlatform {
   /// The method channel used to interact with the native platform.
   @visibleForTesting
-  final methodChannel = const MethodChannel('esp_blufi');
-  final EventChannel _eventChannel = const EventChannel('esp_blufi/state');
+  final methodChannel = const MethodChannel('esp_blufi_simulator_arm64');
+  final EventChannel _eventChannel = const EventChannel('esp_blufi_simulator_arm64/state');
 
   ResultCallback? _resultSuccessCallback;
   ResultCallback? _resultErrorCallback;
