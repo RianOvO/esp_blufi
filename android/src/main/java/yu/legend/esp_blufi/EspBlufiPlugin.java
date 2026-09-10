@@ -153,6 +153,7 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
       scan(filter, result);
     } else if (call.method.equals("stopScan")) {
       stopScan();
+      result.success(null);
     } else if (call.method.equals("connectPeripheral")) {
       String deviceId = call.argument("peripheral");
       if (deviceId != null) {
@@ -166,9 +167,11 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
     } else if (call.method.equals("requestCloseConnection")) {
       Log.d("esp_blufi_tcm", "request close connection received in android native code...");
       disconnectGatt();
+      result.success(null);
     } else if (call.method.equals("requestDeviceWifiScan")) {
       Log.d("esp_blufi_tcm", "request device wifi scan in android native code...");
       requestDeviceWifiScan();
+      result.success(null);
     } else if (call.method.equals("configProvision")) {
       Log.d("esp_blufi_tcm", "configProvision called in android plugin side");
 
@@ -178,18 +181,22 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
       Log.d("esp_blufi_tcm", password);
       configure(userName, password);
 //            configure("The Coding Machine 2.4", "Tcm#pcw3626");
+      result.success(null);
     } else if (call.method.equals("getAllPairedDevice")) {
 //            updateMessage(makeJson("getAllPairedDevice called onMethodCall", "0x0x0x"));
       getAllPairedDevice();
+      result.success(null);
     } else if (call.method.equals("requestDeviceStatus")) {
 //            updateMessage(makeJson("requestDeviceStatus called onMethodCall", "0x0x0x"));
       Log.d("esp_blufi_tcm", "requestDeviceStatus is called on methodCall");
       requestDeviceStatus();
+      result.success(null);
     } else if (call.method.equals("sendCustomData")) {
       Log.d("esp_blufi_tcm", "sendCustomData is called on methodCall");
       String data = call.argument("data");
 
       postCustomData(data);
+      result.success(null);
     } else {
       result.notImplemented();
     }
@@ -372,6 +379,7 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
 
       if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
         System.out.println("line 385: BLUETOOTH_CONNECT && BLUETOOTH_SCAN permissions are not granted..");
+        result.success(false);
         return;
       }
     } else {
@@ -379,6 +387,7 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
       if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
         System.out.println("line 385: BLUETOOTH && BLUETOOTH_ADMIN permissions are not provided..");
 
+        result.success(false);
         return;
       }
     }
