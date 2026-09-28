@@ -51,6 +51,14 @@ abstract class EspBlufiPlatform extends PlatformInterface {
     throw UnimplementedError('requestDeviceWifiScan() has not been implemented');
   }
 
+  Future<void> negotiateSecurity() async {
+    throw UnimplementedError('negotiateSecurity() has not been implemented');
+  }
+
+  Future<void> requestDeviceVersion() async {
+    throw UnimplementedError('requestDeviceVersion() has not been implemented');
+  }
+
   Future<void> configProvision({String? username, String? password}) async {
     throw UnimplementedError('configProvision() has not been implemented');
   }

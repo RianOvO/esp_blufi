@@ -508,9 +508,11 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
    * If negotiate security success, the continue communication data will be encrypted.
    */
   private void negotiateSecurity() {
-    if (mBlufiClient != null) {
-      mBlufiClient.negotiateSecurity();
+    if (mBlufiClient == null || !mConnected) {
+      updateMessage(makeJson("negotiate_security", "0"));
+      return;
     }
+    mBlufiClient.negotiateSecurity();
   }
 
 
@@ -544,9 +546,11 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
    * Request to get device blufi version
    */
   private void requestDeviceVersion() {
-    if (mBlufiClient != null) {
-      mBlufiClient.requestDeviceVersion();
+    if (mBlufiClient == null || !mConnected) {
+      updateMessage(makeJson("device_version", "0"));
+      return;
     }
+    mBlufiClient.requestDeviceVersion();
   }
 
   /**
@@ -767,7 +771,6 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
         if (!requestMtu) {
           mLog.w("Request mtu failed");
           updateMessage(makeJson("request_mtu", "0"));
-          updateMessage(String.format(Locale.ENGLISH, "Request mtu %d failed", mtu));
           onGattServiceCharacteristicDiscovered();
         } else {
           updateMessage(makeJson("request_mtu", "1"));
@@ -778,10 +781,9 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
     @Override
     public void onNegotiateSecurityResult(BlufiClient client, int status) {
       if (status == STATUS_SUCCESS) {
-        updateMessage("Negotiate security complete");
         updateMessage(makeJson("negotiate_security", "1"));
       } else {
-        updateMessage("Negotiate security failed， code=" + status);
+        mLog.w("Negotiate security failed, code=" + status);
         updateMessage(makeJson("negotiate_security", "0"));
       }
     }
@@ -887,6 +889,10 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
       if (errCode == CODE_GATT_WRITE_TIMEOUT) {
         updateMessage(makeJson("gatt_write_timeout", "false"));
         client.close();
+        // A closed client rejects further requests, drop it so later calls report a failure instead of crashing
+        if (mBlufiClient == client) {
+          mBlufiClient = null;
+        }
         onGattDisconnected();
       }
 //      updateMessage(String.format(Locale.ENGLISH, "Receive error code %d", errCode));

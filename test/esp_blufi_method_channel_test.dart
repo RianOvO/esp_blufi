@@ -7,12 +7,15 @@ void main() {
 
   MethodChannelEspBlufi platform = MethodChannelEspBlufi.instance;
   const MethodChannel channel = MethodChannel('esp_blufi');
+  final List<MethodCall> calls = <MethodCall>[];
 
   setUp(() {
+    calls.clear();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       channel,
       (MethodCall methodCall) async {
-        return '42';
+        calls.add(methodCall);
+        return methodCall.method == 'getPlatformVersion' ? '42' : null;
       },
     );
   });
@@ -23,5 +26,16 @@ void main() {
 
   test('getPlatformVersion', () async {
     expect(await platform.getPlatformVersion(), '42');
+  });
+
+  test('negotiateSecurity invokes the native method', () async {
+    await platform.negotiateSecurity();
+    expect(calls.single.method, 'negotiateSecurity');
+    expect(calls.single.arguments, isNull);
+  });
+
+  test('requestDeviceVersion invokes the native method', () async {
+    await platform.requestDeviceVersion();
+    expect(calls.single.method, 'requestDeviceVersion');
   });
 }

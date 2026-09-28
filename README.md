@@ -86,7 +86,12 @@ void listen() {
         // value: {"address": "...", "name": "BLUFI_DEVICE", "rssi": "-50"}
         break;
       case 'GATT_SUCCESS':
-        // Connected and ready: request Wi-Fi scan or send the Wi-Fi settings.
+        // Connected and ready: negotiate encryption before sending the password.
+        blufi.negotiateSecurity();
+        break;
+      case 'negotiate_security':
+        // "1": everything sent from now on is encrypted. "0": negotiation failed;
+        // do not send the password unencrypted, disconnect and retry instead.
         break;
       case 'wifi_info':
         // value: {"ssid": "...", "rssi": "-60", "address": "..."}
@@ -106,7 +111,7 @@ Future<void> provision(String address, String ssid, String password) async {
   // ... pick a device from the ble_scan_result messages ...
   await blufi.stopScan();
   await blufi.connectPeripheral(peripheralAddress: address);
-  // ... wait for GATT_SUCCESS ...
+  // ... wait for GATT_SUCCESS, call negotiateSecurity() and wait for negotiate_security "1" ...
   await blufi.configProvision(username: ssid, password: password);
   await blufi.requestDeviceStatus();
   await blufi.requestCloseConnection();
@@ -121,6 +126,8 @@ Future<void> provision(String address, String ssid, String password) async {
 | `scanDeviceInfo({String? filterString})` | Starts a BLE scan, requesting permissions first when needed. Only devices whose name contains `filterString` (case-insensitive) are reported. Without a filter, Android reports every named device and iOS uses `BLUFI`. |
 | `stopScan()` | Stops the BLE scan. |
 | `connectPeripheral({String? peripheralAddress})` | Connects to a device from `ble_scan_result`. On Android the address is the MAC address; on iOS it is the peripheral UUID. |
+| `negotiateSecurity()` | Negotiates an encryption key with the device (DH key exchange). Once `negotiate_security` reports `"1"`, all data sent afterwards is AES-encrypted and checksummed. Call it after `GATT_SUCCESS` and before `configProvision()`. |
+| `requestDeviceVersion()` | Asks the device for its BLUFI version, reported as `device_version`. |
 | `requestDeviceWifiScan()` | Asks the device to scan for Wi-Fi networks. Each network arrives as a `wifi_info` message. |
 | `configProvision({String? username, String? password})` | Sends the SSID (`username`) and password in station mode. |
 | `requestDeviceStatus()` | Asks the device whether it is connected to Wi-Fi. |
@@ -129,8 +136,7 @@ Future<void> provision(String address, String ssid, String password) async {
 | `getAllPairedDevice()` | Android only: reports bonded devices as `each_connected_device` messages. |
 | `getPlatformVersion()` | Returns the OS name and version. |
 
-Security negotiation (DH key exchange and AES encryption of the BLUFI data) and the device version
-request are implemented natively but are not exposed in the Dart API yet, so data is sent
+Without `negotiateSecurity()`, BLUFI data, including the Wi-Fi password, is sent over Bluetooth
 unencrypted.
 
 ## Messages
@@ -152,6 +158,8 @@ of the connected device.
 | `configure_params` | `"1"` sent, `"0"` failed | Both |
 | `device_status` | `"1"` received (iOS), `"0"` request failed | Both |
 | `device_wifi_connect` | `"1"` device joined the Wi-Fi network, `"0"` not joined | Both |
+| `negotiate_security` | `"1"` encryption enabled, `"0"` failed or not connected | Both |
+| `device_version` | BLUFI version of the device, `"0"` on failure or when not connected | Both |
 | `post_custom_data` | `"1"` sent, `"0"` failed | Both |
 | `receive_device_custom_data` | Custom data sent by the device, `"0"` on failure | Both |
 | `receive_error_code` | BLUFI error code | Android |
@@ -168,6 +176,9 @@ ignore keys you do not handle.
 * Android: the app no longer needs to request Bluetooth or location permissions itself before
   calling `scanDeviceInfo()`.
 * Every method now completes its `Future`, so awaiting it no longer hangs.
+* New `negotiateSecurity()` and `requestDeviceVersion()`. Call `negotiateSecurity()` before
+  `configProvision()` so the Wi-Fi password is not sent in plain text.
+* Every Android message is now JSON; the plain-text negotiation messages were removed.
 
 ## License
 
