@@ -9,11 +9,6 @@
 #ifndef ESPHeaderFiles_h
 #define ESPHeaderFiles_h
 
-#import <openssl/dh.h>
 #import <CommonCrypto/CommonCrypto.h>
-#import <openssl/rsa.h>
-#import <openssl/pem.h>
-#import <openssl/dh.h>
-#import <openssl/bn.h>
 
 #endif /* ESPHeaderFiles_h */

@@ -19,11 +19,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (NSData *)md5:(NSData *)data;
 
-+ (NSData *)aesEncrypt:(NSData *)data key:(NSData *)key iv:(NSData *)iv;
++ (nullable NSData *)aesEncrypt:(NSData *)data key:(NSData *)key iv:(NSData *)iv;
 
-+ (NSData *)aesDecrypt:(NSData *)data key:(NSData *)key iv:(NSData *)iv;
++ (nullable NSData *)aesDecrypt:(NSData *)data key:(NSData *)key iv:(NSData *)iv;
 
-+ (BlufiDH *)dhGenerateKeys;
++ (nullable BlufiDH *)dhGenerateKeys;
 
 @end
 

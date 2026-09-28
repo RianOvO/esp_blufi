@@ -3,8 +3,6 @@
 #import "ESPPeripheral.h"
 #import "ESPFBYBLEHelper.h"
 #import "ESPDataConversion.h"
-#import <CoreLocation/CoreLocation.h>
-#import <SystemConfiguration/CaptiveNetwork.h>
 
 @interface EspBlufiPlugin() <CBCentralManagerDelegate, CBPeripheralDelegate, BlufiDelegate>
 @property(nonatomic, strong) ESPFBYBLEHelper *espFBYBleHelper;
@@ -37,10 +35,18 @@
 - (instancetype)init {
     self = [super init];
     if (self) {
-        self.espFBYBleHelper = [ESPFBYBLEHelper share];
+        // The BLE helper is created lazily on the first scan so that the Bluetooth
+        // permission prompt is not shown as soon as the app launches.
         self.filterContent = [ESPDataConversion loadBlufiScanFilter];
     }
     return self;
+}
+
+- (ESPFBYBLEHelper *)espFBYBleHelper {
+    if (!_espFBYBleHelper) {
+        _espFBYBleHelper = [ESPFBYBLEHelper share];
+    }
+    return _espFBYBleHelper;
 }
 
 - (void)scanDeviceInfo {
@@ -56,12 +62,16 @@
 }
 
 -(void)stopScan {
-    [self.espFBYBleHelper stopScan];
+    [_espFBYBleHelper stopScan];
     [self updateMessage:[self makeJsonWithCommand:@"stop_scan_ble" data:@"1"]];
 }
 
 
 - (void)connectPeripheral:(ESPPeripheral *)perripheral {
+    if (perripheral == nil) {
+        [self updateMessage:[self makeJsonWithCommand:@"peripheral_connect" data:@"0"]];
+        return;
+    }
     self.connected = NO;
     self.device = perripheral;
 
@@ -108,10 +118,14 @@
 }
 
 -(void)configProvisionWithSSID: (NSString *)ssid password:(NSString *)password {
+    if (ssid == nil) {
+        [self updateMessage:[self makeJsonWithCommand:@"configure_params" data:@"0"]];
+        return;
+    }
     BlufiConfigureParams *params = [[BlufiConfigureParams alloc] init];
     params.opMode = OpModeSta;
     params.staSsid = ssid;
-    params.staPassword = password;
+    params.staPassword = password ?: @"";
 
     if (_blufiClient && _connected) {
         [_blufiClient configure:params];
@@ -283,50 +297,65 @@
 
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    NSDictionary *arguments = [call.arguments isKindOfClass:[NSDictionary class]] ? call.arguments : @{};
     if ([@"getPlatformVersion" isEqualToString:call.method]) {
         result([@"iOS " stringByAppendingString:[[UIDevice currentDevice] systemVersion]]);
     } else if ([@"scanDeviceInfo" isEqualToString:call.method]) {
-
-        NSString *filter = call.arguments[@"filter"];
-        if (filter != nil) {
+        id filter = arguments[@"filter"];
+        if ([filter isKindOfClass:[NSString class]]) {
             self.filterContent = filter;
         }
         [self scanDeviceInfo];
-
+        result(@YES);
     } else if ([@"testFunction" isEqualToString:call.method]) {
         NSLog(@"testFunction is being executed from IOS native code.......");
+        result(nil);
     }
     else if ([@"stopScan" isEqualToString:call.method]) {
         [self stopScan];
+        result(nil);
     }
     else if ([@"connectPeripheral" isEqualToString:call.method]) {
-        NSString *peripheral = call.arguments[@"peripheral"];
-        [self connectPeripheral:self.peripheralDictionary[peripheral]];
+        id peripheral = arguments[@"peripheral"];
+        ESPPeripheral *device = [peripheral isKindOfClass:[NSString class]] ? self.dataDictionary[peripheral] : nil;
+        [self connectPeripheral:device];
+        result(@(device != nil));
     }
     else if ([@"requestCloseConnection" isEqualToString:call.method]) {
         [self requestCloseConnection];
+        result(nil);
     }
     else if ([@"negotiateSecurity" isEqualToString:call.method]) {
         [self negotiateSecurity];
+        result(nil);
     }
     else if ([@"requestDeviceVersion" isEqualToString:call.method]) {
         [self requestDeviceVersion];
+        result(nil);
     }
     else if ([@"configProvision" isEqualToString:call.method]) {
-        NSString *username = call.arguments[@"username"];
-        NSString *password = call.arguments[@"password"];
-        [self configProvisionWithSSID:username password:password];
+        id username = arguments[@"username"];
+        id password = arguments[@"password"];
+        [self configProvisionWithSSID:[username isKindOfClass:[NSString class]] ? username : nil
+                             password:[password isKindOfClass:[NSString class]] ? password : nil];
+        result(nil);
     }
     else if ([@"requestDeviceStatus" isEqualToString:call.method]) {
         [self requestDeviceStatus];
+        result(nil);
     }
     else if ([@"requestDeviceWifiScan" isEqualToString:call.method]) {
         [self requestDeviceWifiScan];
+        result(nil);
+    }
+    else if ([@"getAllPairedDevice" isEqualToString:call.method]) {
+        // iOS does not expose bonded BLE devices to apps.
+        result(nil);
     }
     else if ([@"sendCustomData" isEqualToString:call.method]) {
-        // NSString *customData = call.arguments[@"custom_data"];
-        NSString *customData = call.arguments[@"data"];
-        [self postCustomData:customData];
+        id customData = arguments[@"data"];
+        [self postCustomData:[customData isKindOfClass:[NSString class]] ? customData : nil];
+        result(nil);
     }
     else {
         result(FlutterMethodNotImplemented);

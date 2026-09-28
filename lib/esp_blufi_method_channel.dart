@@ -89,11 +89,11 @@ class MethodChannelEspBlufi extends EspBlufiPlatform {
     await methodChannel.invokeMethod('sendCustomData', <String, dynamic>{'data': data});
   }
 
-  speechResultsHandler(dynamic event) {
+  void speechResultsHandler(dynamic event) {
     if (_resultSuccessCallback != null) _resultSuccessCallback!(event);
   }
 
-  speechResultErrorHandler(dynamic error) {
+  void speechResultErrorHandler(dynamic error) {
     if (_resultErrorCallback != null) _resultErrorCallback!(error);
   }
 }

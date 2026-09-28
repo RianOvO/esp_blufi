@@ -7,41 +7,66 @@
 //
 
 #import "BlufiDH.h"
+#import "BlufiModExp.h"
 
-@implementation BlufiDH
+@implementation BlufiDH {
+    NSMutableData *_privateKeyStorage;
+}
 
-- (instancetype)initWithP:(NSData *)p G:(NSData *)g PublicKey:(NSData *)publicKey PrivateKey:(NSData *)privateKey DH:(nonnull DH *)dh {
+- (instancetype)initWithP:(NSData *)p G:(NSData *)g PublicKey:(NSData *)publicKey PrivateKey:(NSData *)privateKey {
     self = [super init];
     if (self) {
         _p = p;
         _g = g;
         _publicKey = publicKey;
-        _privateKey = privateKey;
-        _dh = dh;
+        _privateKeyStorage = [privateKey mutableCopy];
     }
     return self;
 }
 
-- (NSData *)generateSecret:(NSData *)srcPublicKey {
-    if (!_dh) {
-        NSLog(@"BlufiDH: DH is nil");
+- (NSData *)privateKey {
+    return _privateKeyStorage;
+}
+
+- (NSData *)generateSecret:(NSData *)devicePublicKey {
+    if (_privateKeyStorage.length != BLUFI_DH_KEY_BYTES || _p.length != BLUFI_DH_KEY_BYTES) {
+        NSLog(@"BlufiDH: DH keys are not available");
         return nil;
     }
-    Byte shareKey[128];
-    BIGNUM *pubKey = BN_bin2bn(srcPublicKey.bytes, (int)srcPublicKey.length, NULL);
-    int ret = 0;
-    while (!ret) {
-        ret = DH_compute_key(shareKey, pubKey, _dh);
+    if (!blufi_dh_check_public_key(devicePublicKey.bytes, devicePublicKey.length, _p.bytes)) {
+        NSLog(@"BlufiDH: invalid device public key");
+        return nil;
     }
-    BN_free(pubKey);
-    return [NSData dataWithBytes:shareKey length:128];
+
+    // Left-pad the device key to the modulus size (leading zeros are already stripped by the check).
+    const uint8_t *keyBytes = devicePublicKey.bytes;
+    NSUInteger keyLength = devicePublicKey.length;
+    while (keyLength > BLUFI_DH_KEY_BYTES && keyBytes[0] == 0) {
+        keyBytes++;
+        keyLength--;
+    }
+    uint8_t base[BLUFI_DH_KEY_BYTES] = {0};
+    memcpy(base + BLUFI_DH_KEY_BYTES - keyLength, keyBytes, keyLength);
+
+    uint8_t secret[BLUFI_DH_KEY_BYTES];
+    if (blufi_modexp_1024(base, _privateKeyStorage.bytes, _p.bytes, secret) != 0) {
+        NSLog(@"BlufiDH: compute secret failed");
+        return nil;
+    }
+    NSData *result = [NSData dataWithBytes:secret length:BLUFI_DH_KEY_BYTES];
+    memset(secret, 0, sizeof(secret));
+    return result;
 }
 
 - (void)releaseDH {
-    if (_dh) {
-        DH_free(_dh);
-        _dh = nil;
+    if (_privateKeyStorage) {
+        memset(_privateKeyStorage.mutableBytes, 0, _privateKeyStorage.length);
+        _privateKeyStorage = nil;
     }
+}
+
+- (void)dealloc {
+    [self releaseDH];
 }
 
 @end

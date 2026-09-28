@@ -61,6 +61,7 @@ abstract class MockEspBlufiPlatform
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   final EspBlufiPlatform initialPlatform = EspBlufiPlatform.instance;
 
   test('$MethodChannelEspBlufi is the default instance', () {

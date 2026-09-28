@@ -8,6 +8,8 @@
 
 #import "BlufiSecurity.h"
 #import "ESPHeaderFiles.h"
+#import "BlufiModExp.h"
+#import <Security/Security.h>
 
 @implementation BlufiSecurity
 
@@ -40,7 +42,7 @@ const Byte DH_P[] = {
     0x72, 0x8e, 0x87, 0x66, 0x45, 0x32, 0xcd, 0xf5, 0x47, 0xbe, 0x20, 0xc9, 0xa3, 0xfa, 0x83, 0x42,
     0xbe, 0x6e, 0x34, 0x37, 0x1a, 0x27, 0xc0, 0x6f, 0x7d, 0xc0, 0xed, 0xdd, 0xd2, 0xf8, 0x63, 0x73
 };
-const BN_ULONG DH_G = 2;
+const Byte DH_G = 2;
 
 + (NSInteger)crc:(NSInteger)crc data:(NSData *)data {
     Byte *buf = (Byte *)data.bytes;
@@ -104,36 +106,38 @@ const BN_ULONG DH_G = 2;
 }
 
 + (BlufiDH *)dhGenerateKeys {
-    DH *dh;
-    int ret = 0, i;
-    dh = DH_new();
-    
-    dh->p = BN_bin2bn(DH_P, sizeof(DH_P), NULL);
-    dh->g = BN_new();
-    BN_set_word(dh->g, DH_G);
-    
-    while(!ret) {
-        ret = DH_generate_key(dh);
+    uint8_t generator[BLUFI_DH_KEY_BYTES] = {0};
+    generator[BLUFI_DH_KEY_BYTES - 1] = DH_G;
+
+    uint8_t privateKey[BLUFI_DH_KEY_BYTES];
+    uint8_t publicKey[BLUFI_DH_KEY_BYTES];
+    BOOL generated = NO;
+    for (int attempt = 0; attempt < 8 && !generated; attempt++) {
+        // Private key has the same bit length as OpenSSL's default (bits(p) - 1).
+        if (SecRandomCopyBytes(kSecRandomDefault, sizeof(privateKey), privateKey) != errSecSuccess) {
+            NSLog(@"BlufiSecurity Generate DH private key failed");
+            return nil;
+        }
+        privateKey[0] &= 0x7f;
+        if (blufi_modexp_1024(generator, privateKey, DH_P, publicKey) != 0) {
+            break;
+        }
+        generated = blufi_dh_check_public_key(publicKey, sizeof(publicKey), DH_P) == 1;
     }
-    ret = DH_check_pub_key(dh, dh->pub_key, &i);
-    if(ret != 1) {
+    if (!generated) {
+        memset(privateKey, 0, sizeof(privateKey));
         NSLog(@"BlufiSecurity Generate DH public key failed");
         return nil;
     }
-    
-    const int keySize = DH_size(dh);
-    unsigned char *keyBuf = malloc(keySize);
-    BN_bn2bin(dh->pub_key, keyBuf);
-    NSData *publicKey = [NSData dataWithBytes:keyBuf length:keySize];
-    BN_bn2bin(dh->priv_key, keyBuf);
-    NSData *privateKey = [NSData dataWithBytes:keyBuf length:keySize];
-    free(keyBuf);
-    
+
+    NSData *publicKeyData = [NSData dataWithBytes:publicKey length:sizeof(publicKey)];
+    NSData *privateKeyData = [NSData dataWithBytes:privateKey length:sizeof(privateKey)];
+    memset(privateKey, 0, sizeof(privateKey));
+
     NSData *p = [NSData dataWithBytes:DH_P length:sizeof(DH_P)];
     Byte gBuf[] = {DH_G};
     NSData *g = [NSData dataWithBytes:gBuf length:1];
-    
-    BlufiDH *blufiDH = [[BlufiDH alloc] initWithP:p G:g PublicKey:publicKey PrivateKey:privateKey DH:dh];
-    return blufiDH;
+
+    return [[BlufiDH alloc] initWithP:p G:g PublicKey:publicKeyData PrivateKey:privateKeyData];
 }
 @end
