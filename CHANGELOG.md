@@ -1,6 +1,11 @@
 ## 0.2.0
 
 * Support the latest Android and iOS releases.
+* Add `negotiateSecurity()` and `requestDeviceVersion()` to the Dart API, so BLUFI data (including
+  the Wi-Fi password) can be encrypted.
+* Android: every message is JSON (remove the plain-text negotiation messages), report a failure
+  when a request is made without a connection, and no longer crash on requests after a write
+  timeout closed the client.
 * iOS: support Swift Package Manager (the CocoaPods podspec is kept).
 * iOS: remove the bundled OpenSSL static libraries; Diffie-Hellman now uses a small built-in
   implementation, so there is nothing prebuilt to update for new Xcode / simulator architectures.

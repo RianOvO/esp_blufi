@@ -70,6 +70,16 @@ class MethodChannelEspBlufi extends EspBlufiPlatform {
   }
 
   @override
+  Future<void> negotiateSecurity() async {
+    await methodChannel.invokeMethod('negotiateSecurity');
+  }
+
+  @override
+  Future<void> requestDeviceVersion() async {
+    await methodChannel.invokeMethod('requestDeviceVersion');
+  }
+
+  @override
   Future<void> configProvision({String? username, String? password}) async {
     await methodChannel.invokeMethod('configProvision', <String, dynamic>{'username': username, 'password': password});
   }

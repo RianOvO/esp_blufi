@@ -106,15 +106,19 @@
 }
 
 -(void)negotiateSecurity {
-    if (_blufiClient) {
-        [_blufiClient negotiateSecurity];
+    if (!_blufiClient || !_connected) {
+        [self updateMessage:[self makeJsonWithCommand:@"negotiate_security" data:@"0"]];
+        return;
     }
+    [_blufiClient negotiateSecurity];
 }
 
 -(void) requestDeviceVersion {
-    if (_blufiClient) {
-        [_blufiClient requestDeviceVersion];
+    if (!_blufiClient || !_connected) {
+        [self updateMessage:[self makeJsonWithCommand:@"device_version" data:@"0"]];
+        return;
     }
+    [_blufiClient requestDeviceVersion];
 }
 
 -(void)configProvisionWithSSID: (NSString *)ssid password:(NSString *)password {
