@@ -10,6 +10,7 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
 
 import javax.crypto.KeyAgreement;
 import javax.crypto.interfaces.DHPrivateKey;
@@ -67,8 +68,14 @@ public class BlufiDH {
             ka.init(mPrivateKey);
             ka.doPhase(publicKey, true);
 
-            // Generate the secret key
-            mSecretKey = ka.generateSecret();
+            // Generate the secret key. The provider pads it to the modulus length, while the device
+            // (mbedtls_dhm_calc_secret) uses it without leading zero bytes, so strip them.
+            byte[] secret = ka.generateSecret();
+            int offset = 0;
+            while (offset < secret.length - 1 && secret[offset] == 0) {
+                offset++;
+            }
+            mSecretKey = Arrays.copyOfRange(secret, offset, secret.length);
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | InvalidKeyException e) {
             e.printStackTrace();
         }

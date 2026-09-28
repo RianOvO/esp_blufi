@@ -805,13 +805,13 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
 //        updateMessage(String.format("Receive device status response:\n%s"));
         if (response.isStaConnectWifi()) {
 //                    updateMessage(makeJson("device_status", "1"));
-          updateMessage(makeJson("device_status", "wifi_connected"));
+          updateMessage(makeJson("device_wifi_connect", "1"));
         } else {
 //                    updateMessage(makeJson("device_wifi_connect", "0"));
-          updateMessage(makeJson("device_status", "wifi_not_connected"));
+          updateMessage(makeJson("device_wifi_connect", "0"));
         }
       } else {
-        updateMessage(makeJson("device_status", "device_not_connected"));
+        updateMessage(makeJson("device_status", "0"));
 //                updateMessage(makeJson("device_status", "0"));
 //        updateMessage("Device status response error, code=" + status);
       }

@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'esp_blufi'
-  s.version          = '0.1.0'
+  s.version          = '0.2.0'
   s.summary          = 'Wi-Fi configuration through the ESP BLUFI protocol.'
   s.description      = <<-DESC
 Wi-Fi configuration through BLUFI protocol for ESP BLUFI enabled devices.
