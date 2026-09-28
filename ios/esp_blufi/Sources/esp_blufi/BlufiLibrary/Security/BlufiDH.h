@@ -19,7 +19,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (instancetype)initWithP:(NSData *)p G:(NSData *)g PublicKey:(NSData *)publicKey PrivateKey:(NSData *)privateKey;
 
-/// Computes the shared secret (128 bytes, big-endian) from the device public key.
+/// Computes the shared secret (big-endian, without leading zero bytes, as the device does)
+/// from the device public key.
 /// Returns nil if the device public key is invalid.
 - (nullable NSData *)generateSecret:(NSData *)devicePublicKey;
 

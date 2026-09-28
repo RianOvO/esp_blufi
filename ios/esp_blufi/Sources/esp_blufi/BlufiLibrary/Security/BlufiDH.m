@@ -53,7 +53,13 @@
         NSLog(@"BlufiDH: compute secret failed");
         return nil;
     }
-    NSData *result = [NSData dataWithBytes:secret length:BLUFI_DH_KEY_BYTES];
+    // The device (mbedtls_dhm_calc_secret) outputs the secret without leading zero bytes and
+    // derives the AES key from that, so strip them here as well (same as the 0.1.2 fix).
+    NSUInteger offset = 0;
+    while (offset < BLUFI_DH_KEY_BYTES - 1 && secret[offset] == 0) {
+        offset++;
+    }
+    NSData *result = [NSData dataWithBytes:secret + offset length:BLUFI_DH_KEY_BYTES - offset];
     memset(secret, 0, sizeof(secret));
     return result;
 }
