@@ -29,6 +29,7 @@ import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -47,6 +48,7 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
+import io.flutter.plugin.common.PluginRegistry;
 import yu.legend.esp_blufi.params.BlufiConfigureParams;
 import yu.legend.esp_blufi.params.BlufiParameter;
 import yu.legend.esp_blufi.response.BlufiScanResult;
@@ -54,8 +56,11 @@ import yu.legend.esp_blufi.response.BlufiStatusResponse;
 import yu.legend.esp_blufi.response.BlufiVersionResponse;
 
 /** EspBlufiPlugin */
-public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
-  private static final int REQUEST_FINE_LOCATION_PERMISSIONS = 1452;
+public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware,
+        PluginRegistry.RequestPermissionsResultListener {
+  private static final int REQUEST_BLE_PERMISSIONS = 1452;
+  private String mPendingScanFilter;
+  private Result mPendingScanResult;
   private List<ScanResult> mBleList;
   private Map<String, ScanResult> mDeviceMap;
   private ScanCallback mScanCallback;
@@ -110,7 +115,60 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
     mBleList = new LinkedList<>();
     mDeviceMap = new HashMap<>();
     mScanCallback = new ScanCallback();
+    mBluetoothManager = (BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE);
+  }
 
+  /**
+   * Runtime permissions needed to scan and connect:
+   * Android 12+ uses BLUETOOTH_SCAN / BLUETOOTH_CONNECT, older versions need location for BLE scans.
+   */
+  private String[] requiredBlePermissions() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      return new String[]{Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT};
+    }
+    return new String[]{Manifest.permission.ACCESS_FINE_LOCATION};
+  }
+
+  private boolean hasBlePermissions() {
+    for (String permission : requiredBlePermissions()) {
+      if (ContextCompat.checkSelfPermission(mContext, permission) != PackageManager.PERMISSION_GRANTED) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private boolean hasConnectPermission() {
+    return Build.VERSION.SDK_INT < Build.VERSION_CODES.S
+            || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
+  }
+
+  private boolean hasScanPermission() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      return ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED;
+    }
+    return ContextCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+  }
+
+  @Override
+  public boolean onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    if (requestCode != REQUEST_BLE_PERMISSIONS) {
+      return false;
+    }
+    Result result = mPendingScanResult;
+    String filter = mPendingScanFilter;
+    mPendingScanResult = null;
+    mPendingScanFilter = null;
+    if (result == null) {
+      return true;
+    }
+    if (hasBlePermissions()) {
+      scan(filter, result);
+    } else {
+      updateMessage(makeJson("permission_denied", "1"));
+      result.success(false);
+    }
+    return true;
   }
 
   @Override
@@ -121,44 +179,32 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
       result.success("called testFunction and code is triggered in Android....");
       Log.d("esp_blufi_tcm", "This is my message");
 //            if (this.activity.isInitialised){
-      Toast.makeText(this.activity, "Android native code is trigggered from android plugin....", Toast.LENGTH_LONG).show();
+      if (this.activity != null) {
+        Toast.makeText(this.activity, "Android native code is trigggered from android plugin....", Toast.LENGTH_LONG).show();
+      }
 //            }
 
     } else if (call.method.equals("scanDeviceInfo")) {
-//            if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_FINE_LOCATION)
-//                    != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-//                ActivityCompat.requestPermissions(
-////                        activityBinding.getActivity(),
-//                        this.activity,
-//                        new String[]{
-//                                Manifest.permission.ACCESS_FINE_LOCATION,
-//                                Manifest.permission.BLUETOOTH_CONNECT,
-//                                Manifest.permission.BLUETOOTH_SCAN
-//                        },
-//                        REQUEST_FINE_LOCATION_PERMISSIONS);
-//            }
-      if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_FINE_LOCATION)
-              != PackageManager.PERMISSION_GRANTED) {
-        System.out.println("ACCESS_FINE_LOCATION is not granted...scan will not be called");
-        ActivityCompat.requestPermissions(
-                activityBinding.getActivity(),
-                new String[]{
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                },
-                REQUEST_FINE_LOCATION_PERMISSIONS);
-      }
-      System.out.println("ACCESS_FINE_LOCATION by passed...scan will be called");
-
       String filter = call.argument("filter");
-      scan(filter, result);
+      if (hasBlePermissions()) {
+        scan(filter, result);
+      } else if (activity == null) {
+        result.error("no_activity", "Bluetooth permissions are required but no Activity is attached to request them", null);
+      } else if (mPendingScanResult != null) {
+        result.error("permission_request_in_progress", "A Bluetooth permission request is already running", null);
+      } else {
+        mPendingScanFilter = filter;
+        mPendingScanResult = result;
+        ActivityCompat.requestPermissions(activity, requiredBlePermissions(), REQUEST_BLE_PERMISSIONS);
+      }
     } else if (call.method.equals("stopScan")) {
       stopScan();
+      result.success(null);
     } else if (call.method.equals("connectPeripheral")) {
       String deviceId = call.argument("peripheral");
-      if (deviceId != null) {
-//                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-        connectDevice(mDeviceMap.get(deviceId).getDevice());
-//                }
+      ScanResult scanResult = deviceId == null ? null : mDeviceMap.get(deviceId);
+      if (scanResult != null && hasConnectPermission()) {
+        connectDevice(scanResult.getDevice());
         result.success(true);
       } else {
         result.success(false);
@@ -166,30 +212,40 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
     } else if (call.method.equals("requestCloseConnection")) {
       Log.d("esp_blufi_tcm", "request close connection received in android native code...");
       disconnectGatt();
+      result.success(null);
     } else if (call.method.equals("requestDeviceWifiScan")) {
       Log.d("esp_blufi_tcm", "request device wifi scan in android native code...");
       requestDeviceWifiScan();
+      result.success(null);
+    } else if (call.method.equals("negotiateSecurity")) {
+      negotiateSecurity();
+      result.success(null);
+    } else if (call.method.equals("requestDeviceVersion")) {
+      requestDeviceVersion();
+      result.success(null);
     } else if (call.method.equals("configProvision")) {
       Log.d("esp_blufi_tcm", "configProvision called in android plugin side");
 
       String userName = call.argument("username");
       String password = call.argument("password");
-      Log.d("esp_blufi_tcm", userName);
-      Log.d("esp_blufi_tcm", password);
       configure(userName, password);
+      result.success(null);
 //            configure("The Coding Machine 2.4", "Tcm#pcw3626");
     } else if (call.method.equals("getAllPairedDevice")) {
 //            updateMessage(makeJson("getAllPairedDevice called onMethodCall", "0x0x0x"));
       getAllPairedDevice();
+      result.success(null);
     } else if (call.method.equals("requestDeviceStatus")) {
 //            updateMessage(makeJson("requestDeviceStatus called onMethodCall", "0x0x0x"));
       Log.d("esp_blufi_tcm", "requestDeviceStatus is called on methodCall");
       requestDeviceStatus();
+      result.success(null);
     } else if (call.method.equals("sendCustomData")) {
       Log.d("esp_blufi_tcm", "sendCustomData is called on methodCall");
       String data = call.argument("data");
 
       postCustomData(data);
+      result.success(null);
     } else {
       result.notImplemented();
     }
@@ -198,30 +254,57 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
   @Override
   public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
     channel.setMethodCallHandler(null);
+    stateChannel.setStreamHandler(null);
+    sink = null;
+    if (mBlufiClient != null) {
+      mBlufiClient.close();
+      mBlufiClient = null;
+    }
+    if (mThreadPool != null) {
+      mThreadPool.shutdownNow();
+    }
   }
 
   @Override
-  public void onAttachedToActivity(ActivityPluginBinding activityPluginBinding) {
-    // TODO: your plugin is now attached to an Activity
-    this.activity = activityPluginBinding.getActivity();
-    mBluetoothManager = (BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE);
+  public void onAttachedToActivity(@NonNull ActivityPluginBinding activityPluginBinding) {
+    attachToActivity(activityPluginBinding);
   }
 
   @Override
   public void onDetachedFromActivityForConfigChanges() {
-    // TODO: the Activity your plugin was attached to was destroyed to change configuration.
-    // This call will be followed by onReattachedToActivityForConfigChanges().
+    detachFromActivity();
   }
 
   @Override
-  public void onReattachedToActivityForConfigChanges(ActivityPluginBinding activityPluginBinding) {
-    // TODO: your plugin is now attached to a new Activity after a configuration change.
+  public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding activityPluginBinding) {
+    attachToActivity(activityPluginBinding);
   }
+
   @Override
   public void onDetachedFromActivity() {
-    // TODO: your plugin is no longer associated with an Activity. Clean up references.
-    mBluetoothManager = null;
+    detachFromActivity();
+    // The permission result can no longer arrive, complete the pending scan request
+    if (mPendingScanResult != null) {
+      mPendingScanResult.success(false);
+      mPendingScanResult = null;
+      mPendingScanFilter = null;
+    }
   }
+
+  private void attachToActivity(ActivityPluginBinding binding) {
+    activityBinding = binding;
+    activity = binding.getActivity();
+    binding.addRequestPermissionsResultListener(this);
+  }
+
+  private void detachFromActivity() {
+    if (activityBinding != null) {
+      activityBinding.removeRequestPermissionsResultListener(this);
+    }
+    activityBinding = null;
+    activity = null;
+  }
+
   @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
   private class ScanCallback extends android.bluetooth.le.ScanCallback {
 
@@ -244,17 +327,14 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
 
     private void onLeScan(ScanResult scanResult) {
 //            Log.d("Flutter_blufi_tcm", "running onLeScan .....");
-      if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) { //if above sdk > 30
-        if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-          return;
-        }
-      } else {
-        if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-          return;
-        }
+      if (!hasConnectPermission()) {
+        return;
       }
 
       String name = scanResult.getDevice().getName();
+      if (name == null && scanResult.getScanRecord() != null) {
+        name = scanResult.getScanRecord().getDeviceName();
+      }
 
       if (!TextUtils.isEmpty(mBlufiFilter)) {
         if (name == null || !name.toLowerCase().contains(mBlufiFilter.toLowerCase())) {
@@ -264,9 +344,9 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
 
       Log.v("ble scan", scanResult.getDevice().getAddress());
 
-      if (scanResult.getDevice().getName() != null) {
+      if (name != null) {
         mDeviceMap.put(scanResult.getDevice().getAddress(), scanResult);
-        updateMessage(makeScanDeviceJson(scanResult.getDevice().getAddress(), scanResult.getDevice().getName(), scanResult.getRssi()));
+        updateMessage(makeScanDeviceJson(scanResult.getDevice().getAddress(), name, scanResult.getRssi()));
       }
     }
 
@@ -308,27 +388,16 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
   }
 
   private void getAllPairedDevice() {
-    BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-    if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
-//            updateMessage(makeJson("connected_devices_scanning", "0x0x0x"));
-      Set<BluetoothDevice> myBondedDevices = adapter.getBondedDevices();
-
-
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        System.out.println("total bonded devices...");
-        System.out.println(myBondedDevices.size());
-
-        myBondedDevices.forEach((BluetoothDevice e) -> {
-//                    System.out.println(e.toString());
-          String name = e.getName().toString();
-          String deviceAddress = e.getAddress();
-
-//                    updateMessage(makeJson("each_connected_device",name ));
-          String nameAndDeviceAddess = "name: " + name + " address: " + deviceAddress;
-          updateMessage(makeJson("each_connected_device", nameAndDeviceAddess));
-
-        });
-      }
+    if (mBluetoothManager == null || mBluetoothManager.getAdapter() == null || !hasConnectPermission()) {
+      return;
+    }
+    Set<BluetoothDevice> myBondedDevices = mBluetoothManager.getAdapter().getBondedDevices();
+    if (myBondedDevices == null) {
+      return;
+    }
+    for (BluetoothDevice device : myBondedDevices) {
+      String nameAndDeviceAddess = "name: " + device.getName() + " address: " + device.getAddress();
+      updateMessage(makeJson("each_connected_device", nameAndDeviceAddess));
     }
   }
 
@@ -340,51 +409,36 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
 
   @TargetApi(Build.VERSION_CODES.LOLLIPOP)
   private void startScan21(String filter, Result result) {
-//        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-    BluetoothAdapter adapter = mBluetoothManager.getAdapter();
-//        BluetoothAdapter adapter  = BluetoothManager.getAdapter();
-    BluetoothLeScanner scanner = adapter.getBluetoothLeScanner();
-
-//        if(Build.VERSION.SDK_INT >= 31) {
-//            bluetoothAdapter = BluetoothAdapter.getAdapter();
-//        }else{
-//            bluetoothManager = BluetoothManager.getDefaultAdapter();
-//        }
-    if (!adapter.isEnabled() || scanner == null) {
+    BluetoothAdapter adapter = mBluetoothManager == null ? null : mBluetoothManager.getAdapter();
+    if (adapter == null || !adapter.isEnabled()) {
+      mLog.d("Bluetooth adapter is not available or not enabled");
       result.success(false);
-      System.out.println("Adapter is not enabled and scanner == null");
-
       return;
     }
-    System.out.println("reached line 358...");
+    if (!hasScanPermission()) {
+      mLog.d("Bluetooth scan permission is not granted");
+      result.success(false);
+      return;
+    }
+    BluetoothLeScanner scanner = adapter.getBluetoothLeScanner();
+    if (scanner == null) {
+      result.success(false);
+      return;
+    }
     mDeviceMap.clear();
     mBleList.clear();
     mBlufiFilter = filter;
     mScanStartTime = SystemClock.elapsedRealtime();
 
-    mLog.d("Stop scan ble");
     mLog.d("Start scan ble from Android side");
-//        if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-//            return;
-//        }
-    if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) { //if above sdk > 30
-      System.out.println("SDK version is above 30...");
-
-      if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-        System.out.println("line 385: BLUETOOTH_CONNECT && BLUETOOTH_SCAN permissions are not granted..");
-        return;
-      }
-    } else {
-      System.out.println("SDK version is below 30...");
-      if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-        System.out.println("line 385: BLUETOOTH && BLUETOOTH_ADMIN permissions are not provided..");
-
-        return;
-      }
+    try {
+      scanner.startScan(null, new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),
+              mScanCallback);
+      result.success(true);
+    } catch (SecurityException e) {
+      mLog.w("Start scan failed: " + e.getMessage());
+      result.success(false);
     }
-    scanner.startScan(null, new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),
-            mScanCallback);
-    result.success(false);
   }
 
   private void stopScan() {
@@ -393,34 +447,21 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
 
   @TargetApi(Build.VERSION_CODES.LOLLIPOP)
   private void stopScan21() {
-//        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-    BluetoothAdapter adapter = mBluetoothManager.getAdapter();
-    BluetoothLeScanner scanner = null;
+    BluetoothAdapter adapter = mBluetoothManager == null ? null : mBluetoothManager.getAdapter();
+    BluetoothLeScanner scanner = adapter == null ? null : adapter.getBluetoothLeScanner();
 
-    scanner = adapter.getBluetoothLeScanner();
-
-    if (scanner != null) {
-//            if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-//                return;
-//            }
-      if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) { //if above sdk > 30
-        if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-          return;
-        }
-      } else {
-        if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-          return;
-        }
+    if (scanner != null && hasScanPermission()) {
+      try {
+        scanner.stopScan(mScanCallback);
+      } catch (SecurityException | IllegalStateException e) {
+        mLog.w("Stop scan failed: " + e.getMessage());
       }
-      mLog.d("scanner != null");
-      scanner.stopScan(mScanCallback);
     }
     if (mUpdateFuture != null) {
       mUpdateFuture.cancel(true);
     }
     mLog.d("Stop scan ble");
     updateMessage(makeJson("stop_scan_ble", "1"));
-//        updateMessage("stop_scan_ble","1");
   }
 
   void connectDevice(BluetoothDevice device) {
@@ -448,14 +489,8 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
 //            if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
 //                return;
 //            }
-      if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) { //if above sdk > 30
-        if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-          return;
-        }
-      } else {
-        if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-          return;
-        }
+      if (!hasConnectPermission()) {
+        return;
       }
       mLog.d(mDevice.getName());
     }
@@ -473,17 +508,23 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
    * If negotiate security success, the continue communication data will be encrypted.
    */
   private void negotiateSecurity() {
-    mBlufiClient.negotiateSecurity();
+    if (mBlufiClient != null) {
+      mBlufiClient.negotiateSecurity();
+    }
   }
 
 
   private void configure(String userName, String password) {
-    mLog.d("running configure in android plugin....");
-    mLog.d(userName);
-    mLog.d(password);
+    if (mBlufiClient == null || userName == null) {
+      updateMessage(makeJson("configure_params", "0"));
+      return;
+    }
+    if (password == null) {
+      password = "";
+    }
     BlufiConfigureParams params = new BlufiConfigureParams();
     params.setOpMode(1);
-    byte[] ssidBytes = (byte[]) userName.getBytes();
+    byte[] ssidBytes = userName.getBytes(StandardCharsets.UTF_8);
     params.setStaSSIDBytes(ssidBytes);
     params.setStaPassword(password);
     mBlufiClient.configure(params);
@@ -494,30 +535,35 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
    */
   private void requestDeviceStatus() {
 
-    mBlufiClient.requestDeviceStatus();
+    if (mBlufiClient != null) {
+      mBlufiClient.requestDeviceStatus();
+    }
   }
 
   /**
    * Request to get device blufi version
    */
   private void requestDeviceVersion() {
-    mBlufiClient.requestDeviceVersion();
+    if (mBlufiClient != null) {
+      mBlufiClient.requestDeviceVersion();
+    }
   }
 
   /**
    * Request to get AP list that the device scanned
    */
   private void requestDeviceWifiScan() {
-    mBlufiClient.requestDeviceWifiScan();
+    if (mBlufiClient != null) {
+      mBlufiClient.requestDeviceWifiScan();
+    }
   }
 
   /**
    * Try to post custom data
    */
   private void postCustomData(String dataString) {
-    if (dataString != null) {
-//            mBlufiClient.postCustomData(dataString.getBytes());
-      mBlufiClient.postCustomData(dataString.getBytes());
+    if (dataString != null && mBlufiClient != null) {
+      mBlufiClient.postCustomData(dataString.getBytes(StandardCharsets.UTF_8));
     }
   }
 
@@ -583,14 +629,8 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
 //                        if (ContextCompat.checkSelfPermission(mContext,Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
 //                            return;
 //                        }
-            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) { //if above sdk > 30
-              if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-                return;
-              }
-            } else {
-              if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-                return;
-              }
+            if (!hasConnectPermission()) {
+              return;
             }
             gatt.close();
             onGattDisconnected();
@@ -621,7 +661,8 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
     public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
       mLog.d(String.format(Locale.ENGLISH, "onMtuChanged status=%d, mtu=%d", status, mtu));
       if (status == BluetoothGatt.GATT_SUCCESS) {
-        mBlufiClient.setPostPackageLengthLimit(255);
+        // BLUFI frames carry a one-byte length; keep packets within the negotiated ATT MTU as well
+        mBlufiClient.setPostPackageLengthLimit(Math.min(255, mtu - 4));
 //        updateMessage(makeJson("peripheral_disconnect","1"));
         updateMessage(makeJson("Set mtu complete, mtu=%d ", Integer.toString(mtu)));
         updateMessage(makeJson("GATT_SUCCESS", "1"));
@@ -640,14 +681,8 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
 //                if (ContextCompat.checkSelfPermission(mContext,Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
 //                    return;
 //                }
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) { //if above sdk > 30
-          if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            return;
-          }
-        } else {
-          if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-            return;
-          }
+        if (!hasConnectPermission()) {
+          return;
         }
         gatt.disconnect();
         updateMessage(makeJson("discover_services", "1"));
@@ -673,14 +708,8 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
 //                if (ContextCompat.checkSelfPermission(mContext,Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
 //                    return;
 //                }
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) { //if above sdk > 30
-          if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            return;
-          }
-        } else {
-          if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-            return;
-          }
+        if (!hasConnectPermission()) {
+          return;
         }
         gatt.disconnect();
 //                updateMessage(String.format(Locale.ENGLISH, "WriteChar status %d", status));
@@ -704,14 +733,8 @@ public class EspBlufiPlugin implements FlutterPlugin, MethodCallHandler, Activit
 //                if (ContextCompat.checkSelfPermission(mContext,Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
 //                    return;
 //                }
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.R) { //if above sdk > 30
-          if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            return;
-          }
-        } else {
-          if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-            return;
-          }
+        if (!hasConnectPermission()) {
+          return;
         }
         gatt.disconnect();
 //        updateMessage("Discover service failed");

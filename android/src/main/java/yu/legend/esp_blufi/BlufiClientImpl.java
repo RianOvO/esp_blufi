@@ -9,12 +9,15 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothStatusCodes;
 import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
+
+import androidx.annotation.NonNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -59,7 +62,8 @@ class BlufiClientImpl implements BlufiParameter {
     private static final String DH_G = "2";
     private static final String AES_TRANSFORMATION = "AES/CFB/NoPadding";
 
-    private boolean mPrintDebug = BuildConfig.DEBUG;
+    // BuildConfig is not generated for libraries by default since AGP 8; enable via printDebugLog()
+    private boolean mPrintDebug = false;
 
     private BlufiClient mClient;
 
@@ -138,9 +142,7 @@ class BlufiClientImpl implements BlufiParameter {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             mGatt = mDevice.connectGatt(mContext, false, mInnerGattCallback, BluetoothDevice.TRANSPORT_LE);
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                mGatt = mDevice.connectGatt(mContext, false, mInnerGattCallback);
-            }
+            mGatt = mDevice.connectGatt(mContext, false, mInnerGattCallback);
         }
     }
 
@@ -302,6 +304,7 @@ class BlufiClientImpl implements BlufiParameter {
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
+    @SuppressWarnings("deprecation")
     private boolean gattWrite(byte[] data) throws InterruptedException {
         if (!isConnected()) {
             return false;
@@ -309,8 +312,25 @@ class BlufiClientImpl implements BlufiParameter {
         if (mPrintDebug) {
             Log.i(TAG, "gattWrite= " + Arrays.toString(data));
         }
-        mWriteChar.setValue(data);
-        mGatt.writeCharacteristic(mWriteChar);
+        BluetoothGatt gatt = mGatt;
+        BluetoothGattCharacteristic writeChar = mWriteChar;
+        if (gatt == null || writeChar == null) {
+            return false;
+        }
+        boolean requested;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+: the value is passed directly, the old setValue()/writeCharacteristic() pair is deprecated
+            requested = gatt.writeCharacteristic(writeChar, data,
+                    BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothStatusCodes.SUCCESS;
+        } else {
+            writeChar.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+            writeChar.setValue(data);
+            requested = gatt.writeCharacteristic(writeChar);
+        }
+        if (!requested) {
+            Log.w(TAG, "gattWrite: write request rejected");
+            return false;
+        }
         Boolean result;
         if (mWriteTimeout > 0) {
             result = mWriteResultQueue.poll(mWriteTimeout, TimeUnit.MILLISECONDS);
@@ -1208,6 +1228,8 @@ class BlufiClientImpl implements BlufiParameter {
             }
         }
 
+        @Override
+        @SuppressWarnings("deprecation")
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             BluetoothGattService service = null;
             BluetoothGattCharacteristic writeChar = null;
@@ -1237,8 +1259,12 @@ class BlufiClientImpl implements BlufiParameter {
                         notifyChar.getDescriptor(BlufiParameter.UUID_NOTIFICATION_DESCRIPTOR);
                 if (service != null && writeChar != null && notifyChar != null && notifyDesc != null) {
                     Log.d(TAG, "Write ENABLE_NOTIFICATION_VALUE");
-                    notifyDesc.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                    gatt.writeDescriptor(notifyDesc);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        gatt.writeDescriptor(notifyDesc, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                    } else {
+                        notifyDesc.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                        gatt.writeDescriptor(notifyDesc);
+                    }
                 } else {
                     mUIHandler.post(() -> {
                         if (mUserBlufiCallback != null) {
@@ -1250,12 +1276,34 @@ class BlufiClientImpl implements BlufiParameter {
             }
         }
 
+        // Android 13+ delivers the value as a parameter; characteristic.getValue() is no longer reliable
+        @Override
+        public void onCharacteristicChanged(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattCharacteristic characteristic,
+                                            @NonNull byte[] value) {
+            handleNotification(characteristic, value);
+            if (mUserGattCallback != null) {
+                mUserGattCallback.onCharacteristicChanged(gatt, characteristic, value);
+            }
+        }
+
+        // Called on Android 12 and below
+        @Override
+        @SuppressWarnings("deprecation")
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                return;
+            }
+            handleNotification(characteristic, characteristic.getValue());
+            if (mUserGattCallback != null) {
+                mUserGattCallback.onCharacteristicChanged(gatt, characteristic);
+            }
+        }
+
+        private void handleNotification(BluetoothGattCharacteristic characteristic, byte[] data) {
             if (characteristic.equals(mNotifyChar)) {
                 if (mNotifyData == null) {
                     mNotifyData = new BlufiNotifyData();
                 }
-                byte[] data = characteristic.getValue();
                 if (mPrintDebug) {
                     Log.i(TAG, "Gatt Notification: " + Arrays.toString(data));
                 }
@@ -1267,10 +1315,6 @@ class BlufiClientImpl implements BlufiParameter {
                     parseBlufiNotifyData(mNotifyData);
                     mNotifyData = null;
                 }
-            }
-
-            if (mUserGattCallback != null) {
-                mUserGattCallback.onCharacteristicChanged(gatt, characteristic);
             }
         }
 
@@ -1287,13 +1331,39 @@ class BlufiClientImpl implements BlufiParameter {
             }
         }
 
+        @Override
+        public void onCharacteristicRead(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattCharacteristic characteristic,
+                                         @NonNull byte[] value, int status) {
+            if (mUserGattCallback != null) {
+                mUserGattCallback.onCharacteristicRead(gatt, characteristic, value, status);
+            }
+        }
+
+        @Override
+        @SuppressWarnings("deprecation")
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                return;
+            }
             if (mUserGattCallback != null) {
                 mUserGattCallback.onCharacteristicRead(gatt, characteristic, status);
             }
         }
 
+        @Override
+        public void onDescriptorRead(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattDescriptor descriptor,
+                                     int status, @NonNull byte[] value) {
+            if (mUserGattCallback != null) {
+                mUserGattCallback.onDescriptorRead(gatt, descriptor, status, value);
+            }
+        }
+
+        @Override
+        @SuppressWarnings("deprecation")
         public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                return;
+            }
             if (mUserGattCallback != null) {
                 mUserGattCallback.onDescriptorRead(gatt, descriptor, status);
             }

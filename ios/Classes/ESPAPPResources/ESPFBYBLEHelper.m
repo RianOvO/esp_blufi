@@ -9,7 +9,6 @@
 #import "ESPFBYBLEHelper.h"
 #import <CoreBluetooth/CoreBluetooth.h>
 
-API_AVAILABLE(ios(10.0))
 @interface ESPFBYBLEHelper ()<CBCentralManagerDelegate,CBPeripheralDelegate>
 
 @property (nonatomic, strong) CBCentralManager *centralManager;
@@ -17,6 +16,9 @@ API_AVAILABLE(ios(10.0))
 @property (nonatomic, strong) NSMutableArray *peripherals;
 
 @property (nonatomic, assign) CBManagerState peripheralState;
+
+// Only scan when the Dart side asked for it, even if Bluetooth is turned on later.
+@property (nonatomic, assign) BOOL scanRequested;
 
 @end
 
@@ -38,22 +40,15 @@ API_AVAILABLE(ios(10.0))
 }
 
 - (void)stopScan {
+    self.scanRequested = NO;
     [self.centralManager stopScan];
 }
 
 - (void)startScan:(FBYBleDeviceBackBlock)device {
-    
     _bleScanSuccessBlock = device;
-    if (@available(iOS 10.0, *)) {
-        if (self.peripheralState ==  CBManagerStatePoweredOn)
-        {
-            [self.centralManager scanForPeripheralsWithServices:nil options:nil];
-        }
-    } else {
-       if (self.peripheralState ==  CBCentralManagerStatePoweredOn)
-        {
-            [self.centralManager scanForPeripheralsWithServices:nil options:nil];
-        }
+    self.scanRequested = YES;
+    if (self.peripheralState == CBManagerStatePoweredOn) {
+        [self.centralManager scanForPeripheralsWithServices:nil options:nil];
     }
 }
 
@@ -67,7 +62,7 @@ API_AVAILABLE(ios(10.0))
  */
 - (void)centralManager:(CBCentralManager *)central didDiscoverPeripheral:(CBPeripheral *)peripheral advertisementData:(NSDictionary<NSString *,id> *)advertisementData RSSI:(NSNumber *)RSSI {
     ESPPeripheral *espPeripheral = [[ESPPeripheral alloc] initWithPeripheral:peripheral];
-    espPeripheral.name = [advertisementData objectForKey:@"kCBAdvDataLocalName"];
+    espPeripheral.name = advertisementData[CBAdvertisementDataLocalNameKey] ?: peripheral.name;
     espPeripheral.rssi = RSSI.intValue;
     if (self.bleScanSuccessBlock) {
         self.bleScanSuccessBlock(espPeripheral);
@@ -77,40 +72,9 @@ API_AVAILABLE(ios(10.0))
 // 状态更新时调用
 - (void)centralManagerDidUpdateState:(CBCentralManager *)central
 {
-    switch (central.state) {
-        case CBManagerStateUnknown:{
-            self.peripheralState = central.state;
-        }
-            break;
-        case CBManagerStateResetting:
-        {
-            self.peripheralState = central.state;
-        }
-            break;
-        case CBManagerStateUnsupported:
-        {
-            self.peripheralState = central.state;
-        }
-            break;
-        case CBManagerStateUnauthorized:
-        {
-            self.peripheralState = central.state;
-        }
-            break;
-        case CBManagerStatePoweredOff:
-        {
-            self.peripheralState = central.state;
-        }
-            break;
-        case CBManagerStatePoweredOn:
-        {
-            self.peripheralState = central.state;
-            NSLog(@"%ld",(long)self.peripheralState);
-            [self.centralManager scanForPeripheralsWithServices:nil options:nil];
-        }
-            break;
-        default:
-            break;
+    self.peripheralState = central.state;
+    if (central.state == CBManagerStatePoweredOn && self.scanRequested) {
+        [self.centralManager scanForPeripheralsWithServices:nil options:nil];
     }
 }
 

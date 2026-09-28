@@ -178,6 +178,17 @@ enum {
 }
 
 - (void)scanBLE {
+    // The peripheral is usually already known to the system after the scan; connect directly when possible.
+    if (_identifier) {
+        CBPeripheral *known = [_centralManager retrievePeripheralsWithIdentifiers:@[_identifier]].firstObject;
+        if (known) {
+            NSLog(@"Blufi Connect known device: %@", _identifier);
+            _peripheral = known;
+            _peripheral.delegate = self;
+            [_centralManager connectPeripheral:known options:nil];
+            return;
+        }
+    }
     NSLog(@"Blufi Scan device: %@", _identifier);
     [_centralManager scanForPeripheralsWithServices:nil options:nil];
 }
@@ -1009,6 +1020,12 @@ enum {
             }
             
             NSData *secretKey = [blufiDH generateSecret:deviceKey];
+            [blufiDH releaseDH];
+            if (!secretKey) {
+                NSLog(@"negotiateSecurity generate secret failed");
+                code = StatusFailed;
+                return;
+            }
             self.aesKey = [BlufiSecurity md5:secretKey];
             if (DBUG) {
                 NSLog(@"DH Secret = %@", secretKey);
