@@ -7,7 +7,7 @@ Wi-Fi provisioning for Espressif devices over the [BLUFI](https://docs.espressif
 | Platform | Minimum | Built against |
 | --- | --- | --- |
 | Android | API 21 (Android 5.0) | compileSdk 36 (Android 16), AGP 9.1, Java 17 |
-| iOS | iOS 13 | No prebuilt binaries, so it builds for device and arm64 simulators |
+| iOS | iOS 13 | Swift Package Manager or CocoaPods; no prebuilt binaries, so it builds for device and arm64 simulators |
 | Flutter | 3.27 | 3.47 |
 
 ## Setup
@@ -45,6 +45,10 @@ first Bluetooth access without it:
 
 The Bluetooth permission prompt is shown the first time `scanDeviceInfo()` is called, not at
 app launch. The plugin ships a privacy manifest (`PrivacyInfo.xcprivacy`).
+
+The plugin supports both Swift Package Manager and CocoaPods. When Swift Package Manager is
+enabled (`flutter config --enable-swift-package-manager`, the default on recent Flutter
+versions), Flutter uses `ios/esp_blufi/Package.swift`; otherwise it falls back to the podspec.
 
 ## Usage
 

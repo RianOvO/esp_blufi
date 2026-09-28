@@ -13,12 +13,12 @@ Wi-Fi configuration through BLUFI protocol for ESP BLUFI enabled devices.
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'RianOvO' => 'yu.legend@outlook.com' }
   s.source           = { :path => '.' }
-  s.source_files = 'Classes/**/*'
-  s.public_header_files = 'Classes/**/*.h'
+  s.source_files = 'esp_blufi/Sources/esp_blufi/**/*.{h,m,c}'
+  s.public_header_files = 'esp_blufi/Sources/esp_blufi/include/**/*.h'
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
   s.frameworks = 'CoreBluetooth', 'Security'
-  s.resource_bundles = { 'esp_blufi_privacy' => ['Resources/PrivacyInfo.xcprivacy'] }
+  s.resource_bundles = { 'esp_blufi_privacy' => ['esp_blufi/Sources/esp_blufi/PrivacyInfo.xcprivacy'] }
 
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
