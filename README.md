@@ -1,5 +1,7 @@
 # esp_blufi
 
+English | [中文](README_zh.md)
+
 Wi-Fi provisioning for Espressif devices over the
 [BLUFI](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/ble/blufi.html)
 protocol, for Android and iOS. The app scans for the device over Bluetooth LE, connects to it and
